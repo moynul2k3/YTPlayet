@@ -105,29 +105,6 @@ export function YouTubePlayer({
     }
   }, [videoId, isReady]);
 
-  // Update time + progress
-  // useEffect(() => {
-  //   if (!mounted || !isReady) return;
-
-  //   const interval = setInterval(() => {
-  //     if (playerRef.current) {
-  //       const time = playerRef.current.getCurrentTime() || 0;
-  //       setCurrentTime(time);
-
-  //       if (duration > 0) {
-  //         const rawPercent = (time / duration) * 100;
-  //         const percent = Math.min(100, Math.max(0, rawPercent));
-
-  //         // Report progress to parent
-  //         onProgress(videoId, percent);
-  //       }
-  //     }
-  //   }, 500);
-
-  //   return () => clearInterval(interval);
-  // }, [mounted, isReady, duration, videoId, onProgress]);
-
-
   // In YouTubePlayer
   useEffect(() => {
     if (!mounted || !isReady) return;
