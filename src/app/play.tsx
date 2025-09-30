@@ -18,7 +18,7 @@ declare global {
   }
 }
 
-export default function YouTubePlayer({ videoId }: { videoId: string }) {
+export function YouTubePlayer({ videoId }: { videoId: string }) {
   const playerRef = useRef<any>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
 
@@ -209,4 +209,16 @@ export default function YouTubePlayer({ videoId }: { videoId: string }) {
       </div>
     </div>
   );
+}
+
+interface videoData{
+  
+}
+
+interface videoData{
+  video: videoData[]
+}
+
+export default function videoData(){
+  return
 }
