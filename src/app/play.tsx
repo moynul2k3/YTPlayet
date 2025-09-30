@@ -240,24 +240,31 @@ export function YouTubePlayer({
   );
 }
 
+interface Topic {
+  id: number;
+  description: string;
+  video_id: string;
+}
+
 interface Module {
   id: number;
   title: string;
-  description: string;
-  video_id: string;
+  topic: Topic[];
 }
 
 interface ModuleData {
   module: Module[];
 }
 
+
 export default function VideoData({ module }: ModuleData) {
   if (!module || module.length === 0) return null;
 
-  const firstVideo = module[0];
+  // First video = first topic of first module
+  const firstVideo = module[0].topic[0];
   const [videoId, setVideoId] = useState(firstVideo.video_id);
 
-  // Track progress + playing per video
+  // Progress maps
   const [progressMap, setProgressMap] = useState<{ [key: string]: number }>({});
   const [playingMap, setPlayingMap] = useState<{ [key: string]: boolean }>({});
   const [maxProgressMap, setMaxProgressMap] = useState<{ [key: string]: number }>({});
@@ -274,10 +281,14 @@ export default function VideoData({ module }: ModuleData) {
     setPlayingMap((prev) => ({ ...prev, [id]: isPlaying }));
   };
 
-  const currentVideo = module.find((vid) => vid.video_id === videoId) || firstVideo;
+  // Find the current video from all modules/topics
+  const currentVideo =
+    module.flatMap((m) => m.topic).find((t) => t.video_id === videoId) ||
+    firstVideo;
 
   return (
     <div className="flex justify-between items-start max-lg:flex-col gap-10 mt-20">
+      {/* Video Player */}
       <div className="w-[60%] bg-white/5 backdrop-blur-2xl rounded-2xl min-h-80">
         <YouTubePlayer
           videoId={videoId}
@@ -287,28 +298,43 @@ export default function VideoData({ module }: ModuleData) {
         />
       </div>
 
-      <div className="w-[40%] bg-purple-600/10 backdrop-blur-2xl rounded-2xl min-h-80 p-4">
-        <h2 className="text-xl font-bold mb-4">{currentVideo.title}</h2>
-        <p>{currentVideo.description}</p>
+      {/* Sidebar */}
+      <div className="w-[40%] bg-purple-600/10 backdrop-blur-2xl rounded-2xl min-h-80 p-4 overflow-y-auto">
+        <h2 className="text-xl font-bold mb-4">Now Playing</h2>
+        <p className="mb-6">{currentVideo.description}</p>
 
-        <div className="mt-6 space-y-2">
-          {module.map((vid) => {
-            const isCurrent = vid.video_id === videoId;
-            const progress = progressMap[vid.video_id] || 0;
-            const playing = playingMap[currentVideo.id] || false;
+        <div className="space-y-4">
+          {module.map((m) => (
+            <div
+              key={m.id}
+              className="bg-white/5 rounded-xl p-3 border border-white/10"
+            >
+              {/* Parent Module Title */}
+              <h3 className="text-lg font-bold text-purple-700 mb-2">
+                📚 {m.title}
+              </h3>
 
-            return (
-              <button
-                key={vid.id}
-                onClick={() => setVideoId(vid.video_id)}
-                className={`p-2 rounded w-full text-left flex items-center gap-3 transition 
-                  ${isCurrent ? "bg-purple-500/30" : "bg-white/10 hover:bg-white/20"}`}
-              >
-                <Progress progress={progress} playing={isCurrent} />
-                {vid.title}
-              </button>
-            );
-          })}
+              {/* Child Topics */}
+              <div className="space-y-2">
+                {m.topic.map((t) => {
+                  const isCurrent = t.video_id === videoId;
+                  const progress = progressMap[t.video_id] || 0;
+
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setVideoId(t.video_id)}
+                      className={`p-2 rounded w-full text-left flex items-center gap-3 transition 
+                        ${isCurrent ? "bg-purple-500/30" : "bg-white/10 hover:bg-white/20"}`}
+                    >
+                      <Progress progress={progress} playing={isCurrent} />
+                      {t.description}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
