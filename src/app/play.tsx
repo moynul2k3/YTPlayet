@@ -106,26 +106,74 @@ export function YouTubePlayer({
   }, [videoId, isReady]);
 
   // Update time + progress
+  // useEffect(() => {
+  //   if (!mounted || !isReady) return;
+
+  //   const interval = setInterval(() => {
+  //     if (playerRef.current) {
+  //       const time = playerRef.current.getCurrentTime() || 0;
+  //       setCurrentTime(time);
+
+  //       if (duration > 0) {
+  //         const rawPercent = (time / duration) * 100;
+  //         const percent = Math.min(100, Math.max(0, rawPercent));
+
+  //         // Report progress to parent
+  //         onProgress(videoId, percent);
+  //       }
+  //     }
+  //   }, 500);
+
+  //   return () => clearInterval(interval);
+  // }, [mounted, isReady, duration, videoId, onProgress]);
+
+
+  // In YouTubePlayer
   useEffect(() => {
     if (!mounted || !isReady) return;
 
     const interval = setInterval(() => {
       if (playerRef.current) {
         const time = playerRef.current.getCurrentTime() || 0;
+        const dur = playerRef.current.getDuration() || duration;
+
         setCurrentTime(time);
+        setDuration(dur);
 
-        if (duration > 0) {
-          const rawPercent = (time / duration) * 100;
-          const percent = Math.min(100, Math.max(0, rawPercent));
+        if (dur > 0) {
+          const percent = (time / dur) * 100;
 
-          // Report progress to parent
-          onProgress(videoId, percent);
+          // ✅ Only report exact percent (not force 100 until ended)
+          onProgress(videoId, Math.min(99.9, percent));
         }
       }
     }, 500);
 
     return () => clearInterval(interval);
   }, [mounted, isReady, duration, videoId, onProgress]);
+
+  // onStateChange — fix ended case
+  onStateChange: (event: any) => {
+    if (event.data === window.YT.PlayerState.PLAYING) {
+      setIsPlaying(true);
+      setIsEnded(false);
+      onPlayingChange(videoId, true);
+    } else if (event.data === window.YT.PlayerState.PAUSED) {
+      setIsPlaying(false);
+      onPlayingChange(videoId, false);
+    } else if (event.data === window.YT.PlayerState.ENDED) {
+      setIsPlaying(false);
+      setIsEnded(true);
+
+      // ✅ Only here report 100%
+      onProgress(videoId, 100);
+      onPlayingChange(videoId, false);
+    }
+  }
+
+
+
+
 
   // Controls
   const togglePlay = () => {
