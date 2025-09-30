@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Progress from "./progress";
 import {
   Play,
   CirclePause,
@@ -18,7 +19,17 @@ declare global {
   }
 }
 
-export function YouTubePlayer({ videoId }: { videoId: string }) {
+export function YouTubePlayer({
+  videoId,
+  onProgress,
+  onPlayingChange,
+  maxProgressPercent,
+}: {
+  videoId: string;
+  onProgress: (videoId: string, progress: number) => void;
+  onPlayingChange: (videoId: string, isPlaying: boolean) => void;
+  maxProgressPercent: number;
+}) {
   const playerRef = useRef<any>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
 
@@ -29,7 +40,6 @@ export function YouTubePlayer({ videoId }: { videoId: string }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(100);
-  const [maxProgressPercent, setMaxProgressPercent] = useState(0);
   const [isEnded, setIsEnded] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -72,11 +82,14 @@ export function YouTubePlayer({ videoId }: { videoId: string }) {
           if (event.data === window.YT.PlayerState.PLAYING) {
             setIsPlaying(true);
             setIsEnded(false);
+            onPlayingChange(videoId, true);
           } else if (event.data === window.YT.PlayerState.PAUSED) {
             setIsPlaying(false);
+            onPlayingChange(videoId, false);
           } else if (event.data === window.YT.PlayerState.ENDED) {
             setIsPlaying(false);
             setIsEnded(true);
+            onPlayingChange(videoId, false);
           }
         },
       },
@@ -92,7 +105,7 @@ export function YouTubePlayer({ videoId }: { videoId: string }) {
     }
   }, [videoId, isReady]);
 
-  // Update time
+  // Update time + progress
   useEffect(() => {
     if (!mounted || !isReady) return;
 
@@ -102,14 +115,17 @@ export function YouTubePlayer({ videoId }: { videoId: string }) {
         setCurrentTime(time);
 
         if (duration > 0) {
-          const percent = (time / duration) * 100;
-          if (percent > maxProgressPercent) setMaxProgressPercent(percent);
+          const rawPercent = (time / duration) * 100;
+          const percent = Math.min(100, Math.max(0, rawPercent));
+
+          // Report progress to parent
+          onProgress(videoId, percent);
         }
       }
     }, 500);
 
     return () => clearInterval(interval);
-  }, [mounted, isReady, duration, maxProgressPercent]);
+  }, [mounted, isReady, duration, videoId, onProgress]);
 
   // Controls
   const togglePlay = () => {
@@ -167,6 +183,7 @@ export function YouTubePlayer({ videoId }: { videoId: string }) {
     <div className="w-full h-full bg-black rounded-xl overflow-hidden shadow-lg relative group">
       <div ref={iframeRef} className="w-full h-full aspect-video" />
 
+      {/* Controls */}
       <div>
         {!isEnded ? (
           <div className="fixed bottom-0 left-0 w-full bg-transparent group-hover:bg-white text-white group-hover:text-purple-600 p-4 flex gap-2 items-center overflow-hidden rounded-b-xl transition-all ease-in-out duration-100">
@@ -240,12 +257,34 @@ export default function VideoData({ module }: ModuleData) {
   const firstVideo = module[0];
   const [videoId, setVideoId] = useState(firstVideo.video_id);
 
+  // Track progress + playing per video
+  const [progressMap, setProgressMap] = useState<{ [key: string]: number }>({});
+  const [playingMap, setPlayingMap] = useState<{ [key: string]: boolean }>({});
+  const [maxProgressMap, setMaxProgressMap] = useState<{ [key: string]: number }>({});
+
+  const handleProgress = (id: string, progress: number) => {
+    setProgressMap((prev) => ({ ...prev, [id]: progress }));
+    setMaxProgressMap((prev) => ({
+      ...prev,
+      [id]: Math.max(prev[id] || 0, progress),
+    }));
+  };
+
+  const handlePlayingChange = (id: string, isPlaying: boolean) => {
+    setPlayingMap((prev) => ({ ...prev, [id]: isPlaying }));
+  };
+
   const currentVideo = module.find((vid) => vid.video_id === videoId) || firstVideo;
 
   return (
     <div className="flex justify-between items-start max-lg:flex-col gap-10 mt-20">
       <div className="w-[60%] bg-white/5 backdrop-blur-2xl rounded-2xl min-h-80">
-        <YouTubePlayer videoId={videoId} />
+        <YouTubePlayer
+          videoId={videoId}
+          onProgress={handleProgress}
+          onPlayingChange={handlePlayingChange}
+          maxProgressPercent={maxProgressMap[videoId] || 0}
+        />
       </div>
 
       <div className="w-[40%] bg-purple-600/10 backdrop-blur-2xl rounded-2xl min-h-80 p-4">
@@ -253,15 +292,23 @@ export default function VideoData({ module }: ModuleData) {
         <p>{currentVideo.description}</p>
 
         <div className="mt-6 space-y-2">
-          {module.map((vid) => (
-            <button
-              key={vid.id}
-              onClick={() => setVideoId(vid.video_id)}
-              className="p-2 bg-white/10 rounded w-full text-left hover:bg-white/20"
-            >
-              {vid.title}
-            </button>
-          ))}
+          {module.map((vid) => {
+            const isCurrent = vid.video_id === videoId;
+            const progress = progressMap[vid.video_id] || 0;
+            const playing = playingMap[currentVideo.id] || false;
+
+            return (
+              <button
+                key={vid.id}
+                onClick={() => setVideoId(vid.video_id)}
+                className={`p-2 rounded w-full text-left flex items-center gap-3 transition 
+                  ${isCurrent ? "bg-purple-500/30" : "bg-white/10 hover:bg-white/20"}`}
+              >
+                <Progress progress={progress} playing={isCurrent} />
+                {vid.title}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

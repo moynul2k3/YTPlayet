@@ -20,7 +20,7 @@ export const module = [
     id: 3,
     title: "State Management with Redux",
     description: "Quick guide to Redux Toolkit and store setup.",
-    video_id: "LUQy6SSokSE",
+    video_id: "NSAOrGb9orM",
   },
   {
     id: 4,
