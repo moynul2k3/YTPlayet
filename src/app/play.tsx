@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import Progress from "./progress";
 import {
   Play,
@@ -121,7 +121,7 @@ export function YouTubePlayer({
           const percent = (time / dur) * 100;
 
           // ✅ Only report exact percent (not force 100 until ended)
-          onProgress(videoId, Math.min(99.9, percent));
+          onProgress(videoId, Math.min(100, percent));
         }
       }
     }, 500);
@@ -285,13 +285,15 @@ interface ModuleData {
 export default function VideoData({ module }: ModuleData) {
   if (!module || module.length === 0) return null;
 
+  // Flatten all topics across modules in order
+  const allTopics = useMemo(() => module.flatMap((m) => m.topic), [module]);
+
   // First video = first topic of first module
-  const firstVideo = module[0].topic[0];
+  const firstVideo = allTopics[0];
   const [videoId, setVideoId] = useState(firstVideo.video_id);
 
-  // Progress maps
+  // Progress tracking
   const [progressMap, setProgressMap] = useState<{ [key: string]: number }>({});
-  const [playingMap, setPlayingMap] = useState<{ [key: string]: boolean }>({});
   const [maxProgressMap, setMaxProgressMap] = useState<{ [key: string]: number }>({});
 
   const handleProgress = (id: string, progress: number) => {
@@ -303,13 +305,21 @@ export default function VideoData({ module }: ModuleData) {
   };
 
   const handlePlayingChange = (id: string, isPlaying: boolean) => {
-    setPlayingMap((prev) => ({ ...prev, [id]: isPlaying }));
+    // optional: track playing state if needed
   };
 
-  // Find the current video from all modules/topics
+  // Current video info
   const currentVideo =
-    module.flatMap((m) => m.topic).find((t) => t.video_id === videoId) ||
-    firstVideo;
+    allTopics.find((t) => t.video_id === videoId) || firstVideo;
+
+  // Global unlock check (across all modules/topics)
+  const isUnlocked = (topic: Topic) => {
+    const index = allTopics.findIndex((t) => t.video_id === topic.video_id);
+    if (index === 0) return true; // very first video is always unlocked
+
+    const prevTopic = allTopics[index - 1];
+    return (progressMap[prevTopic.video_id] || 0) >= 100; // unlocked only if previous finished
+  };
 
   return (
     <div className="flex justify-between items-start max-lg:flex-col gap-10 mt-20">
@@ -334,23 +344,31 @@ export default function VideoData({ module }: ModuleData) {
               key={m.id}
               className="bg-white/5 rounded-xl p-3 border border-white/10"
             >
-              {/* Parent Module Title */}
+              {/* Module Title */}
               <h3 className="text-lg font-bold text-purple-700 mb-2">
                 📚 {m.title}
               </h3>
 
-              {/* Child Topics */}
+              {/* Topics */}
               <div className="space-y-2">
                 {m.topic.map((t) => {
                   const isCurrent = t.video_id === videoId;
                   const progress = progressMap[t.video_id] || 0;
+                  const unlocked = isUnlocked(t);
 
                   return (
                     <button
                       key={t.id}
-                      onClick={() => setVideoId(t.video_id)}
-                      className={`p-2 rounded w-full text-left flex items-center gap-3 transition 
-                        ${isCurrent ? "bg-purple-500/30" : "bg-white/10 hover:bg-white/20"}`}
+                      disabled={!unlocked}
+                      onClick={() => unlocked && setVideoId(t.video_id)}
+                      className={`p-2 rounded w-full text-left flex items-center gap-3 transition
+                        ${
+                          isCurrent
+                            ? "bg-purple-500/30"
+                            : unlocked
+                            ? "bg-white/10 hover:bg-white/20"
+                            : "bg-gray-500/20 cursor-not-allowed opacity-50"
+                        }`}
                     >
                       <Progress progress={progress} playing={isCurrent} />
                       {t.description}

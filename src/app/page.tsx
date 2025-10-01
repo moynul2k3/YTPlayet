@@ -16,7 +16,7 @@ export const module = [
       {
         id: 2,
         description: "Understanding React hooks: useState and useEffect.",
-        video_id: "w7ejDZ8SWv8",
+        video_id: "_Td7JjCTfyc",
       },
     ],
   },
@@ -27,7 +27,7 @@ export const module = [
       {
         id: 3,
         description: "Learn about Next.js file-based routing.",
-        video_id: "_Td7JjCTfyc",
+        video_id: "NSAOrGb9orM",
       },
       {
         id: 4,
@@ -43,7 +43,7 @@ export const module = [
       {
         id: 5,
         description: "Introduction to Redux and the core concepts.",
-        video_id: "NSAOrGb9orM",
+        video_id: "w7ejDZ8SWv8",
       },
       {
         id: 6,
