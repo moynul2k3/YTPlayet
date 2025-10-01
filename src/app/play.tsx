@@ -318,12 +318,11 @@ export default function VideoData({ module }: ModuleData) {
     if (index === 0) return true; // very first video is always unlocked
 
     const prevTopic = allTopics[index - 1];
-    return (progressMap[prevTopic.video_id] || 0) >= 100; // unlocked only if previous finished
+    return (progressMap[prevTopic.video_id] || 0) >= 100;
   };
 
   return (
     <div className="flex justify-between items-start max-lg:flex-col gap-10 mt-20">
-      {/* Video Player */}
       <div className="w-[60%] bg-white/5 backdrop-blur-2xl rounded-2xl min-h-80">
         <YouTubePlayer
           videoId={videoId}
@@ -370,7 +369,7 @@ export default function VideoData({ module }: ModuleData) {
                             : "bg-gray-500/20 cursor-not-allowed opacity-50"
                         }`}
                     >
-                      <Progress progress={progress} playing={isCurrent} />
+                      <Progress progress={progress} playing={isCurrent} is_locked={!unlocked} />
                       {t.description}
                     </button>
                   );
