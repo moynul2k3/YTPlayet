@@ -269,7 +269,7 @@ export function YouTubePlayer({
       {/* Controls */}
       <div>
         {!isEnded ? (
-          <div className="fixed bottom-0 left-0 w-full bg-transparent group-hover:bg-white text-white group-hover:text-purple-600 p-4 flex gap-2 items-center overflow-hidden rounded-b-xl transition-all ease-in-out duration-100">
+          <div className="fixed bottom-0 left-0 w-full bg-black/10 group-hover:bg-white text-white group-hover:text-purple-600 p-4 flex gap-2 items-center overflow-hidden rounded-b-xl transition-all ease-in-out duration-100">
             {/* <button onClick={togglePlay} className="p-2 rounded-full">
               {isPlaying ? <CirclePause /> : <Play />}
             </button> */}
