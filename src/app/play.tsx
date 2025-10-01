@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import Progress from "./progress";
 import { getCookie, setCookie } from "cookies-next";
+import { postVideoProgress }  from "./apiRequest"
 
 import {
   Play,
@@ -349,21 +350,6 @@ export function YouTubePlayer({
   );
 }
 
-interface Topic {
-  id: number;
-  description: string;
-  video_id: string;
-}
-
-interface Module {
-  id: number;
-  title: string;
-  topic: Topic[];
-}
-
-interface ModuleData {
-  module: Module[];
-}
 
 
 import { useDispatch, useSelector } from "react-redux";
@@ -373,12 +359,14 @@ import {
   setPlaying as setPlayingAction,
   setVideoId as setVideoIdAction,
   unlockVideo as unlockVideoAction,
+  markCompleted,
 } from "@/store/videoSlice";
-
 interface Topic {
   id: number;
   description: string;
   video_id: string;
+  is_completed: boolean,
+  is_locked: boolean,
 }
 
 interface Module {
@@ -391,33 +379,37 @@ interface ModuleData {
   module: Module[];
 }
 
+
+
 export default function VideoData({ module }: ModuleData) {
   if (!module || module.length === 0) return null;
-
-  const u_id = getCookie("u_id"); // keep for store key if needed later
-
-  // Flatten all topics across modules in order
-  const allTopics = useMemo(() => module.flatMap((m) => m.topic), [module]);
-
-  // First video = first topic of first module
-  const firstVideo = allTopics[0];
 
   const dispatch = useDispatch<AppDispatch>();
   const videoState = useSelector((s: RootState) => s.video);
 
-  // locally compute sets for quick checks:
-  const completedVideos = new Set(videoState.completedVideos);
-  const unlockedVideosSet = new Set(videoState.unlockedVideos);
+  const u_id_cookie = getCookie("u_id");
+  const u_id = typeof u_id_cookie === "string" ? u_id_cookie : "";
 
-  // ensure there's a currentVideoId on first load (set default if not persisted)
+  const allTopics = useMemo(() => module.flatMap((m) => m.topic), [module]);
+  const firstVideo = allTopics[0];
+
+  // Initialize Redux state from module
   useEffect(() => {
+    allTopics.forEach((t) => {
+      if (t.is_completed && !videoState.completedVideos.includes(t.video_id)) {
+        dispatch(markCompleted(t.video_id));
+      }
+      if (!t.is_locked && !videoState.unlockedVideos.includes(t.video_id)) {
+        dispatch(unlockVideoAction(t.video_id));
+      }
+    });
+
     if (!videoState.currentVideoId) {
       dispatch(setVideoIdAction(firstVideo.video_id));
       dispatch(unlockVideoAction(firstVideo.video_id));
     }
-  }, [dispatch, firstVideo.video_id, videoState.currentVideoId]);
+  }, [dispatch, allTopics, firstVideo.video_id, videoState.currentVideoId, videoState.completedVideos, videoState.unlockedVideos]);
 
-  // derive videoId from redux state (fallback to firstVideo)
   const videoId = videoState.currentVideoId ?? firstVideo.video_id;
   const playingVideoId = videoState.playingVideoId;
   const progressMap = videoState.progressMap;
@@ -427,30 +419,36 @@ export default function VideoData({ module }: ModuleData) {
   const hasPrev = currentIndex > 0;
   const hasNext = currentIndex < allTopics.length - 1;
   const nextVideoId = hasNext ? allTopics[currentIndex + 1].video_id : null;
+  const currentVideo = allTopics.find((t) => t.video_id === videoId) || firstVideo;
 
-  const currentVideo =
-    allTopics.find((t) => t.video_id === videoId) || firstVideo;
-
-  const isUnlocked = (topic: Topic) => {
-    return unlockedVideosSet.has(topic.video_id);
-  };
+  const isUnlocked = (topic: Topic) => videoState.unlockedVideos.includes(topic.video_id);
 
   const handleProgress = (id: string, progress: number) => {
     dispatch(setProgressAction({ id, progress }));
 
     if (progress >= 100) {
-      // unlock next topic in sequence
+      dispatch(markCompleted(id));
+
       const index = allTopics.findIndex((t) => t.video_id === id);
       if (index !== -1 && index < allTopics.length - 1) {
         const nextId = allTopics[index + 1].video_id;
         dispatch(unlockVideoAction(nextId));
+      }
+
+      // Post to API
+      if (u_id) {
+        postVideoProgress({
+          u_id,
+          topic_id: id,
+          is_completed: true,
+          is_locked: !isUnlocked(allTopics[index + 1] || { video_id: "", is_locked: true }),
+        });
       }
     }
   };
 
   const handlePlayingChange = (id: string, isPlaying: boolean) => {
     dispatch(setPlayingAction({ id: isPlaying ? id : null, isPlaying }));
-    console.log("id : ", id, "isPlaying : ", isPlaying);
   };
 
   const handlePrev = () => {
@@ -458,7 +456,7 @@ export default function VideoData({ module }: ModuleData) {
   };
 
   const handleNext = () => {
-    if (hasNext && nextVideoId && unlockedVideosSet.has(nextVideoId)) {
+    if (hasNext && nextVideoId && isUnlocked(allTopics[currentIndex + 1])) {
       dispatch(setVideoIdAction(nextVideoId));
     }
   };
@@ -475,7 +473,7 @@ export default function VideoData({ module }: ModuleData) {
           onPrev={handlePrev}
           onNext={handleNext}
           isPrevDisabled={!hasPrev}
-          isNextDisabled={!hasNext || !unlockedVideosSet.has(nextVideoId || "")}
+          isNextDisabled={!hasNext || !isUnlocked(allTopics[currentIndex + 1] || { video_id: "", is_locked: true })}
         />
       </div>
 
@@ -486,29 +484,20 @@ export default function VideoData({ module }: ModuleData) {
 
         <div className="space-y-4">
           {module.map((m) => (
-            <div
-              key={m.id}
-              className="bg-white/5 rounded-xl p-3 border border-white/10"
-            >
-              {/* Module Title */}
-              <h3 className="text-lg font-bold text-purple-700 mb-2">
-                📚 {m.title}
-              </h3>
-
-              {/* Topics */}
+            <div key={m.id} className="bg-white/5 rounded-xl p-3 border border-white/10">
+              <h3 className="text-lg font-bold text-purple-700 mb-2">📚 {m.title}</h3>
               <div className="space-y-2">
                 {m.topic.map((t) => {
                   const isCurrent = t.video_id === videoId;
                   const progress = progressMap[t.video_id] || 0;
                   const unlocked = isUnlocked(t);
+                  const completed = videoState.completedVideos.includes(t.video_id);
 
                   return (
                     <button
                       key={t.id}
                       disabled={!unlocked}
-                      onClick={() =>
-                        unlocked && dispatch(setVideoIdAction(t.video_id))
-                      }
+                      onClick={() => unlocked && dispatch(setVideoIdAction(t.video_id))}
                       className={`p-2 rounded w-full text-left flex items-center gap-3 transition
                         ${
                           isCurrent
@@ -521,7 +510,7 @@ export default function VideoData({ module }: ModuleData) {
                       <Progress
                         progress={progress}
                         playing={playingVideoId === t.video_id}
-                        is_completed={completedVideos.has(t.video_id)}
+                        is_completed={completed}
                         is_locked={!unlocked}
                       />
                       {t.description}
