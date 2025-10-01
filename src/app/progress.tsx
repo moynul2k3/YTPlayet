@@ -1,13 +1,14 @@
 "use client";
 
 import React from "react";
-import { Play, Pause, Lock } from "lucide-react";
+import { Play, Pause, Lock, Check } from "lucide-react";
 
 interface CircleProgressProps {
   progress: number; // 0 to 100
   size?: number; // optional: size in px, default 100
   strokeWidth?: number; // optional: stroke width, default 8
   is_locked? : boolean;
+  is_completed? : boolean;
   playing? : boolean;
 }
 
@@ -16,6 +17,7 @@ const CircleProgress: React.FC<CircleProgressProps> = ({
   size = 30,
   strokeWidth = 2,
   is_locked=true,
+  is_completed=false,
   playing=false
 }) => {
   const radius = (size - strokeWidth) / 2;
@@ -52,11 +54,15 @@ const CircleProgress: React.FC<CircleProgressProps> = ({
         />
       </svg>
       <div className="absolute ">
-        {is_locked? <Lock size={size / 2.8} className="text-purple-700" />
-          : playing ?
+        {is_locked ? (
+          <Lock size={size / 2.8} className="text-purple-700" />
+        ) : playing ? (
           <Pause size={size / 2.8} className="text-purple-700" />
-          : <Play size={size / 2.8} className="text-purple-700" />
-        }
+        ) : is_completed? (
+          <Check size={size / 2.2} className="text-purple-700" />
+        ) : (
+          <Play size={size / 2.8} className="text-purple-700" />
+        )}
       </div>
     </div>
   );

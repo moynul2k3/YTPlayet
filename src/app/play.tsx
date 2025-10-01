@@ -2,9 +2,12 @@
 
 import { useEffect, useRef, useState, useMemo } from "react";
 import Progress from "./progress";
+import { getCookie, setCookie } from "cookies-next";
+
 import {
   Play,
   CirclePause,
+  Pause,
   Volume1,
   VolumeOff,
   RotateCcw,
@@ -19,17 +22,27 @@ declare global {
   }
 }
 
+interface videoProps {
+  videoId: string;
+  onProgress: (videoId: string, progress: number) => void;
+  onPlayingChange: (videoId: string, isPlaying: boolean) => void;
+  maxProgressPercent: number;
+  onPrev: () => void;
+  onNext: () => void;
+  isPrevDisabled: boolean;
+  isNextDisabled: boolean;
+}
+
 export function YouTubePlayer({
   videoId,
   onProgress,
   onPlayingChange,
   maxProgressPercent,
-}: {
-  videoId: string;
-  onProgress: (videoId: string, progress: number) => void;
-  onPlayingChange: (videoId: string, isPlaying: boolean) => void;
-  maxProgressPercent: number;
-}) {
+  onPrev,
+  onNext,
+  isPrevDisabled,
+  isNextDisabled,
+}: videoProps) {
   const playerRef = useRef<any>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
 
@@ -61,6 +74,46 @@ export function YouTubePlayer({
     }
   }, [mounted]);
 
+  // const initPlayer = () => {
+  //   playerRef.current = new window.YT.Player(iframeRef.current!, {
+  //     videoId,
+  //     playerVars: {
+  //       autoplay: 0,
+  //       controls: 0,
+  //       modestbranding: 1,
+  //       rel: 0,
+  //       fs: 0,
+  //       iv_load_policy: 3,
+  //       disablekb: 1,
+  //     },
+  //     events: {
+  //       onReady: (event: any) => {
+  //         setIsReady(true);
+  //         setDuration(event.target.getDuration());
+  //       },
+  //       onStateChange: (event: any) => {
+  //         if (event.data === window.YT.PlayerState.PLAYING) {
+  //           setIsPlaying(true);
+  //           setIsEnded(false);
+  //           onPlayingChange(videoId, true);
+  //         } else if (event.data === window.YT.PlayerState.PAUSED) {
+  //           setIsPlaying(false);
+  //           onPlayingChange(videoId, false);
+  //         } else if (event.data === window.YT.PlayerState.ENDED) {
+  //           setIsPlaying(false);
+  //           setIsEnded(true);
+  //           onPlayingChange(videoId, false);
+  //         }
+  //       },
+  //     },
+  //   });
+  // };
+
+  const videoIdRef = useRef(videoId);
+    useEffect(() => {
+      videoIdRef.current = videoId;
+  }, [videoId]);
+
   const initPlayer = () => {
     playerRef.current = new window.YT.Player(iframeRef.current!, {
       videoId,
@@ -79,22 +132,26 @@ export function YouTubePlayer({
           setDuration(event.target.getDuration());
         },
         onStateChange: (event: any) => {
+          const currentVid = videoIdRef.current; // ✅ always up-to-date
+
           if (event.data === window.YT.PlayerState.PLAYING) {
             setIsPlaying(true);
             setIsEnded(false);
-            onPlayingChange(videoId, true);
+            onPlayingChange(currentVid, true);
           } else if (event.data === window.YT.PlayerState.PAUSED) {
             setIsPlaying(false);
-            onPlayingChange(videoId, false);
+            onPlayingChange(currentVid, false);
           } else if (event.data === window.YT.PlayerState.ENDED) {
             setIsPlaying(false);
             setIsEnded(true);
-            onPlayingChange(videoId, false);
+            onProgress(currentVid, 100); // ✅ report 100%
+            onPlayingChange(currentVid, false);
           }
         },
       },
     });
   };
+
 
   // Handle videoId changes
   useEffect(() => {
@@ -202,7 +259,7 @@ export function YouTubePlayer({
     return `${m}:${s}`;
   };
 
-  if (!mounted) return <div className="w-full h-full bg-black rounded-xl" />;
+  if (!mounted) return <div className="w-full h-full bg-black" />;
 
   return (
     <div className="w-full h-full bg-black rounded-xl overflow-hidden shadow-lg relative group">
@@ -212,8 +269,27 @@ export function YouTubePlayer({
       <div>
         {!isEnded ? (
           <div className="fixed bottom-0 left-0 w-full bg-transparent group-hover:bg-white text-white group-hover:text-purple-600 p-4 flex gap-2 items-center overflow-hidden rounded-b-xl transition-all ease-in-out duration-100">
-            <button onClick={togglePlay} className="p-2 rounded-full">
+            {/* <button onClick={togglePlay} className="p-2 rounded-full">
               {isPlaying ? <CirclePause /> : <Play />}
+            </button> */}
+            <button 
+              onClick={onPrev} 
+              disabled={isPrevDisabled}
+              className={`p-2 rounded-full ${isPrevDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              <SkipBack size={20} />
+            </button>
+
+            <button onClick={togglePlay} className="p-2 rounded-full">
+              {isPlaying ? <Pause size={20} /> : <Play />}
+            </button>
+
+            <button 
+              onClick={onNext} 
+              disabled={isNextDisabled}
+              className={`p-2 rounded-full ${isNextDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              <SkipForward size={20} />
             </button>
 
             <div className="flex items-center gap-2 flex-1">
@@ -246,17 +322,25 @@ export function YouTubePlayer({
           </div>
         ) : (
           <div className="flex items-center justify-center gap-4 bg-purple-500 p-4 absolute top-0 left-0 h-full w-full">
-            <button className="px-4 py-2 rounded-lg flex items-center gap-2 text-white">
-              <SkipBack className="hover:scale-105 transition-all ease-in-out duration-200" />
+            <button 
+              onClick={onPrev}
+              disabled={isPrevDisabled}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 text-white ${isPrevDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              <SkipBack />
             </button>
             <button
               onClick={handleReplay}
               className="px-4 py-2 rounded-lg flex items-center gap-2 text-white"
             >
-              <RotateCcw className="hover:scale-105 transition-all ease-in-out duration-200" />
+              <RotateCcw />
             </button>
-            <button className="px-4 py-2 rounded-lg flex items-center gap-2 text-white">
-              <SkipForward className="hover:scale-105 transition-all ease-in-out duration-200" />
+            <button 
+              onClick={onNext}
+              disabled={isNextDisabled}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 text-white ${isNextDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              <SkipForward />
             </button>
           </div>
         )}
@@ -282,53 +366,116 @@ interface ModuleData {
 }
 
 
+import { useDispatch, useSelector } from "react-redux";
+import type { RootState, AppDispatch } from "@/store/store";
+import {
+  setProgress as setProgressAction,
+  setPlaying as setPlayingAction,
+  setVideoId as setVideoIdAction,
+  unlockVideo as unlockVideoAction,
+} from "@/store/videoSlice";
+
+interface Topic {
+  id: number;
+  description: string;
+  video_id: string;
+}
+
+interface Module {
+  id: number;
+  title: string;
+  topic: Topic[];
+}
+
+interface ModuleData {
+  module: Module[];
+}
+
 export default function VideoData({ module }: ModuleData) {
   if (!module || module.length === 0) return null;
+
+  const u_id = getCookie("u_id"); // keep for store key if needed later
 
   // Flatten all topics across modules in order
   const allTopics = useMemo(() => module.flatMap((m) => m.topic), [module]);
 
   // First video = first topic of first module
   const firstVideo = allTopics[0];
-  const [videoId, setVideoId] = useState(firstVideo.video_id);
 
-  // Progress tracking
-  const [progressMap, setProgressMap] = useState<{ [key: string]: number }>({});
-  const [maxProgressMap, setMaxProgressMap] = useState<{ [key: string]: number }>({});
+  const dispatch = useDispatch<AppDispatch>();
+  const videoState = useSelector((s: RootState) => s.video);
 
-  const handleProgress = (id: string, progress: number) => {
-    setProgressMap((prev) => ({ ...prev, [id]: progress }));
-    setMaxProgressMap((prev) => ({
-      ...prev,
-      [id]: Math.max(prev[id] || 0, progress),
-    }));
-  };
+  // locally compute sets for quick checks:
+  const completedVideos = new Set(videoState.completedVideos);
+  const unlockedVideosSet = new Set(videoState.unlockedVideos);
 
-  const handlePlayingChange = (id: string, isPlaying: boolean) => {
-    // optional: track playing state if needed
-  };
+  // ensure there's a currentVideoId on first load (set default if not persisted)
+  useEffect(() => {
+    if (!videoState.currentVideoId) {
+      dispatch(setVideoIdAction(firstVideo.video_id));
+      dispatch(unlockVideoAction(firstVideo.video_id));
+    }
+  }, [dispatch, firstVideo.video_id, videoState.currentVideoId]);
 
-  // Current video info
+  // derive videoId from redux state (fallback to firstVideo)
+  const videoId = videoState.currentVideoId ?? firstVideo.video_id;
+  const playingVideoId = videoState.playingVideoId;
+  const progressMap = videoState.progressMap;
+  const maxProgressMap = videoState.maxProgressMap;
+
+  const currentIndex = allTopics.findIndex((t) => t.video_id === videoId);
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex < allTopics.length - 1;
+  const nextVideoId = hasNext ? allTopics[currentIndex + 1].video_id : null;
+
   const currentVideo =
     allTopics.find((t) => t.video_id === videoId) || firstVideo;
 
-  // Global unlock check (across all modules/topics)
   const isUnlocked = (topic: Topic) => {
-    const index = allTopics.findIndex((t) => t.video_id === topic.video_id);
-    if (index === 0) return true; // very first video is always unlocked
+    return unlockedVideosSet.has(topic.video_id);
+  };
 
-    const prevTopic = allTopics[index - 1];
-    return (progressMap[prevTopic.video_id] || 0) >= 100;
+  const handleProgress = (id: string, progress: number) => {
+    dispatch(setProgressAction({ id, progress }));
+
+    if (progress >= 100) {
+      // unlock next topic in sequence
+      const index = allTopics.findIndex((t) => t.video_id === id);
+      if (index !== -1 && index < allTopics.length - 1) {
+        const nextId = allTopics[index + 1].video_id;
+        dispatch(unlockVideoAction(nextId));
+      }
+    }
+  };
+
+  const handlePlayingChange = (id: string, isPlaying: boolean) => {
+    dispatch(setPlayingAction({ id: isPlaying ? id : null, isPlaying }));
+    console.log("id : ", id, "isPlaying : ", isPlaying);
+  };
+
+  const handlePrev = () => {
+    if (hasPrev) dispatch(setVideoIdAction(allTopics[currentIndex - 1].video_id));
+  };
+
+  const handleNext = () => {
+    if (hasNext && nextVideoId && unlockedVideosSet.has(nextVideoId)) {
+      dispatch(setVideoIdAction(nextVideoId));
+    }
   };
 
   return (
     <div className="flex justify-between items-start max-lg:flex-col gap-10 mt-20">
+      {/* Video Player */}
       <div className="w-[60%] bg-white/5 backdrop-blur-2xl rounded-2xl min-h-80">
         <YouTubePlayer
           videoId={videoId}
           onProgress={handleProgress}
           onPlayingChange={handlePlayingChange}
           maxProgressPercent={maxProgressMap[videoId] || 0}
+          onPrev={handlePrev}
+          onNext={handleNext}
+          isPrevDisabled={!hasPrev}
+          isNextDisabled={!hasNext || !unlockedVideosSet.has(nextVideoId || "")}
         />
       </div>
 
@@ -359,7 +506,9 @@ export default function VideoData({ module }: ModuleData) {
                     <button
                       key={t.id}
                       disabled={!unlocked}
-                      onClick={() => unlocked && setVideoId(t.video_id)}
+                      onClick={() =>
+                        unlocked && dispatch(setVideoIdAction(t.video_id))
+                      }
                       className={`p-2 rounded w-full text-left flex items-center gap-3 transition
                         ${
                           isCurrent
@@ -369,7 +518,12 @@ export default function VideoData({ module }: ModuleData) {
                             : "bg-gray-500/20 cursor-not-allowed opacity-50"
                         }`}
                     >
-                      <Progress progress={progress} playing={isCurrent} is_locked={!unlocked} />
+                      <Progress
+                        progress={progress}
+                        playing={playingVideoId === t.video_id}
+                        is_completed={completedVideos.has(t.video_id)}
+                        is_locked={!unlocked}
+                      />
                       {t.description}
                     </button>
                   );
