@@ -3,7 +3,7 @@ import Module from "./play"
 
 // data/videos.js
 
-export const module = [
+export const moduleData = [
   {
     id: 1,
     title: "Learn React in 5 Minutes",
@@ -38,7 +38,7 @@ export const module = [
       {
         id: 4,
         description: "Dynamic routes and catch-all routes in Next.js.",
-        video_id: "1WmNXEVia8I",
+        video_id: "pJCJuz4zwnM",
         is_completed: false,
         is_locked: true,
       },
@@ -124,7 +124,7 @@ export const module = [
 export default function page() {
   return (
     <div className='w-full px-2 md:px-20 lg:px-32 h-auto '>
-      <Module module={module} />
+      <Module modules={moduleData} />
     </div>
   )
 }
