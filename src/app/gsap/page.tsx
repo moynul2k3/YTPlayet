@@ -27,7 +27,7 @@ const ScrollAnimation = () => {
     requestAnimationFrame(raf);
 
     // GSAP ScrollTrigger animation
-    gsap.utils.toArray(".element").forEach((el: any) => {
+    gsap.utils.toArray<HTMLElement>(".element").forEach((el) => {
       gsap.from(el, {
         opacity: 100,
         y: 90,

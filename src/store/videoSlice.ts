@@ -69,4 +69,4 @@ export const {
 
 export default videoSlice.reducer;
 
-export type { VideoState };
+

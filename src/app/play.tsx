@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useRef, useState, useMemo } from "react";
 import Progress from "./progress";
 import { getCookie, setCookie } from "cookies-next";
-import { postVideoProgress }  from "./apiRequest"
+import { postVideoProgress } from "./apiRequest";
 
 import {
   Play,
@@ -18,7 +19,7 @@ import {
 
 declare global {
   interface Window {
-    YT: any;
+    YT: typeof YT;
     onYouTubeIframeAPIReady: () => void;
   }
 }
@@ -111,8 +112,8 @@ export function YouTubePlayer({
   // };
 
   const videoIdRef = useRef(videoId);
-    useEffect(() => {
-      videoIdRef.current = videoId;
+  useEffect(() => {
+    videoIdRef.current = videoId;
   }, [videoId]);
 
   const initPlayer = () => {
@@ -128,11 +129,11 @@ export function YouTubePlayer({
         disablekb: 1,
       },
       events: {
-        onReady: (event: any) => {
+        onReady: (event: YT.PlayerEvent) => {
           setIsReady(true);
           setDuration(event.target.getDuration());
         },
-        onStateChange: (event: any) => {
+        onStateChange: (event: YT.OnStateChangeEvent) => {
           const currentVid = videoIdRef.current; // ✅ always up-to-date
 
           if (event.data === window.YT.PlayerState.PLAYING) {
@@ -152,7 +153,6 @@ export function YouTubePlayer({
       },
     });
   };
-
 
   // Handle videoId changes
   useEffect(() => {
@@ -187,28 +187,24 @@ export function YouTubePlayer({
     return () => clearInterval(interval);
   }, [mounted, isReady, duration, videoId, onProgress]);
 
-  // onStateChange — fix ended case
-  onStateChange: (event: any) => {
-    if (event.data === window.YT.PlayerState.PLAYING) {
-      setIsPlaying(true);
-      setIsEnded(false);
-      onPlayingChange(videoId, true);
-    } else if (event.data === window.YT.PlayerState.PAUSED) {
-      setIsPlaying(false);
-      onPlayingChange(videoId, false);
-    } else if (event.data === window.YT.PlayerState.ENDED) {
-      setIsPlaying(false);
-      setIsEnded(true);
+  // // onStateChange — fix ended case
+  // onStateChange: (event: any) => {
+  //   if (event.data === window.YT.PlayerState.PLAYING) {
+  //     setIsPlaying(true);
+  //     setIsEnded(false);
+  //     onPlayingChange(videoId, true);
+  //   } else if (event.data === window.YT.PlayerState.PAUSED) {
+  //     setIsPlaying(false);
+  //     onPlayingChange(videoId, false);
+  //   } else if (event.data === window.YT.PlayerState.ENDED) {
+  //     setIsPlaying(false);
+  //     setIsEnded(true);
 
-      // ✅ Only here report 100%
-      onProgress(videoId, 100);
-      onPlayingChange(videoId, false);
-    }
-  }
-
-
-
-
+  //     // ✅ Only here report 100%
+  //     onProgress(videoId, 100);
+  //     onPlayingChange(videoId, false);
+  //   }
+  // }
 
   // Controls
   const togglePlay = () => {
@@ -256,7 +252,9 @@ export function YouTubePlayer({
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60).toString().padStart(2, "0");
+    const s = Math.floor(seconds % 60)
+      .toString()
+      .padStart(2, "0");
     return `${m}:${s}`;
   };
 
@@ -273,10 +271,12 @@ export function YouTubePlayer({
             {/* <button onClick={togglePlay} className="p-2 rounded-full">
               {isPlaying ? <CirclePause /> : <Play />}
             </button> */}
-            <button 
-              onClick={onPrev} 
+            <button
+              onClick={onPrev}
               disabled={isPrevDisabled}
-              className={`p-2 rounded-full ${isPrevDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
+              className={`p-2 rounded-full ${
+                isPrevDisabled ? "opacity-50 cursor-not-allowed" : ""
+              }`}
             >
               <SkipBack size={20} />
             </button>
@@ -285,10 +285,12 @@ export function YouTubePlayer({
               {isPlaying ? <Pause size={20} /> : <Play />}
             </button>
 
-            <button 
-              onClick={onNext} 
+            <button
+              onClick={onNext}
               disabled={isNextDisabled}
-              className={`p-2 rounded-full ${isNextDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
+              className={`p-2 rounded-full ${
+                isNextDisabled ? "opacity-50 cursor-not-allowed" : ""
+              }`}
             >
               <SkipForward size={20} />
             </button>
@@ -323,10 +325,12 @@ export function YouTubePlayer({
           </div>
         ) : (
           <div className="flex items-center justify-center gap-4 bg-purple-500 p-4 absolute top-0 left-0 h-full w-full">
-            <button 
+            <button
               onClick={onPrev}
               disabled={isPrevDisabled}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 text-white ${isPrevDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 text-white ${
+                isPrevDisabled ? "opacity-50 cursor-not-allowed" : ""
+              }`}
             >
               <SkipBack />
             </button>
@@ -336,10 +340,12 @@ export function YouTubePlayer({
             >
               <RotateCcw />
             </button>
-            <button 
+            <button
               onClick={onNext}
               disabled={isNextDisabled}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 text-white ${isNextDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 text-white ${
+                isNextDisabled ? "opacity-50 cursor-not-allowed" : ""
+              }`}
             >
               <SkipForward />
             </button>
@@ -349,8 +355,6 @@ export function YouTubePlayer({
     </div>
   );
 }
-
-
 
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState, AppDispatch } from "@/store/store";
@@ -365,8 +369,8 @@ interface Topic {
   id: number;
   description: string;
   video_id: string;
-  is_completed: boolean,
-  is_locked: boolean,
+  is_completed: boolean;
+  is_locked: boolean;
 }
 
 interface Module {
@@ -376,13 +380,11 @@ interface Module {
 }
 
 interface ModuleData {
-  module: Module[];
+  modules: Module[];
 }
 
-
-
-export default function VideoData({ module }: ModuleData) {
-  if (!module || module.length === 0) return null;
+export default function VideoData({ modules }: ModuleData) {
+ 
 
   const dispatch = useDispatch<AppDispatch>();
   const videoState = useSelector((s: RootState) => s.video);
@@ -390,7 +392,7 @@ export default function VideoData({ module }: ModuleData) {
   const u_id_cookie = getCookie("u_id");
   const u_id = typeof u_id_cookie === "string" ? u_id_cookie : "";
 
-  const allTopics = useMemo(() => module.flatMap((m) => m.topic), [module]);
+  const allTopics = useMemo(() => modules.flatMap((m) => m.topic), [modules]);
   const firstVideo = allTopics[0];
 
   // Initialize Redux state from module
@@ -408,7 +410,15 @@ export default function VideoData({ module }: ModuleData) {
       dispatch(setVideoIdAction(firstVideo.video_id));
       dispatch(unlockVideoAction(firstVideo.video_id));
     }
-  }, [dispatch, allTopics, firstVideo.video_id, videoState.currentVideoId, videoState.completedVideos, videoState.unlockedVideos]);
+  }, [
+    dispatch,
+    allTopics,
+    firstVideo.video_id,
+    videoState.currentVideoId,
+    videoState.completedVideos,
+    videoState.unlockedVideos,
+  ]);
+   if (!modules || modules.length === 0) return null;
 
   const videoId = videoState.currentVideoId ?? firstVideo.video_id;
   const playingVideoId = videoState.playingVideoId;
@@ -419,9 +429,11 @@ export default function VideoData({ module }: ModuleData) {
   const hasPrev = currentIndex > 0;
   const hasNext = currentIndex < allTopics.length - 1;
   const nextVideoId = hasNext ? allTopics[currentIndex + 1].video_id : null;
-  const currentVideo = allTopics.find((t) => t.video_id === videoId) || firstVideo;
+  const currentVideo =
+    allTopics.find((t) => t.video_id === videoId) || firstVideo;
 
-  const isUnlocked = (topic: Topic) => videoState.unlockedVideos.includes(topic.video_id);
+  const isUnlocked = (topic: Topic) =>
+    videoState.unlockedVideos.includes(topic.video_id);
 
   const handleProgress = (id: string, progress: number) => {
     dispatch(setProgressAction({ id, progress }));
@@ -441,7 +453,9 @@ export default function VideoData({ module }: ModuleData) {
           u_id,
           topic_id: id,
           is_completed: true,
-          is_locked: !isUnlocked(allTopics[index + 1] || { video_id: "", is_locked: true }),
+          is_locked: !isUnlocked(
+            allTopics[index + 1] || { video_id: "", is_locked: true }
+          ),
         });
       }
     }
@@ -452,7 +466,8 @@ export default function VideoData({ module }: ModuleData) {
   };
 
   const handlePrev = () => {
-    if (hasPrev) dispatch(setVideoIdAction(allTopics[currentIndex - 1].video_id));
+    if (hasPrev)
+      dispatch(setVideoIdAction(allTopics[currentIndex - 1].video_id));
   };
 
   const handleNext = () => {
@@ -473,7 +488,12 @@ export default function VideoData({ module }: ModuleData) {
           onPrev={handlePrev}
           onNext={handleNext}
           isPrevDisabled={!hasPrev}
-          isNextDisabled={!hasNext || !isUnlocked(allTopics[currentIndex + 1] || { video_id: "", is_locked: true })}
+          isNextDisabled={
+            !hasNext ||
+            !isUnlocked(
+              allTopics[currentIndex + 1] || { video_id: "", is_locked: true }
+            )
+          }
         />
       </div>
 
@@ -483,21 +503,30 @@ export default function VideoData({ module }: ModuleData) {
         <p className="mb-6">{currentVideo.description}</p>
 
         <div className="space-y-4">
-          {module.map((m) => (
-            <div key={m.id} className="bg-white/5 rounded-xl p-3 border border-white/10">
-              <h3 className="text-lg font-bold text-purple-700 mb-2">📚 {m.title}</h3>
+          {modules.map((m) => (
+            <div
+              key={m.id}
+              className="bg-white/5 rounded-xl p-3 border border-white/10"
+            >
+              <h3 className="text-lg font-bold text-purple-700 mb-2">
+                📚 {m.title}
+              </h3>
               <div className="space-y-2">
                 {m.topic.map((t) => {
                   const isCurrent = t.video_id === videoId;
                   const progress = progressMap[t.video_id] || 0;
                   const unlocked = isUnlocked(t);
-                  const completed = videoState.completedVideos.includes(t.video_id);
+                  const completed = videoState.completedVideos.includes(
+                    t.video_id
+                  );
 
                   return (
                     <button
                       key={t.id}
                       disabled={!unlocked}
-                      onClick={() => unlocked && dispatch(setVideoIdAction(t.video_id))}
+                      onClick={() =>
+                        unlocked && dispatch(setVideoIdAction(t.video_id))
+                      }
                       className={`p-2 rounded w-full text-left flex items-center gap-3 transition
                         ${
                           isCurrent
