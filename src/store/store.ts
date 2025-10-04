@@ -26,7 +26,7 @@ export type RootState = {
 // factory that creates a store + persistor per userId
 export const makeStore = (userId?: string) => {
   const persistConfig = {
-    key: `app_${userId ?? "guest"}`, // ← per-user key
+    key: `student_${userId ?? "guest"}`, // ← per-user key
     storage,
     whitelist: ["video"],
   };
